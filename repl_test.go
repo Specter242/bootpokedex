@@ -40,3 +40,17 @@ func TestCleanInput(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandExit(t *testing.T) {
+	err := commandExit()
+	if err != nil {
+		t.Errorf("Expected nil error, but got %v", err)
+	}
+}
+
+func TestCommandHelp(t *testing.T) {
+	err := commandHelp()
+	if err != nil {
+		t.Errorf("Expected nil error, but got %v", err)
+	}
+}
