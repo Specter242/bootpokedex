@@ -1,4 +1,4 @@
-package pokeapi
+package internal
 
 import (
 	"encoding/json"
@@ -24,17 +24,28 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-// location represents a subset of data returned for a location.
-type location struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	// Add additional fields as needed.
+type LocationResponse struct {
+	Count    int        `json:"count"`
+	Next     string     `json:"next"`
+	Previous string     `json:"previous"`
+	Results  []Location `json:"results"`
 }
 
+type Location struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+var currentLocationURL string = "https://pokeapi.co/api/v2/location-area"
+
 // GetLocations fetches a list of locations.
-func (c *Client) GetLocations() ([]location, error) {
-	endpoint := fmt.Sprintf("%s/location-area", c.BaseURL)
-	resp, err := c.HTTPClient.Get(endpoint)
+func (c *Client) GetLocations() (*LocationResponse, error) {
+	url := currentLocationURL
+	if url == "" {
+		url = c.BaseURL + "/location-area"
+	}
+
+	resp, err := c.HTTPClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching locations: %w", err)
 	}
@@ -45,39 +56,11 @@ func (c *Client) GetLocations() ([]location, error) {
 		return nil, fmt.Errorf("unexpected status %s: %s", resp.Status, body)
 	}
 
-	var locations []location
-	if err := json.NewDecoder(resp.Body).Decode(&locations); err != nil {
+	var locationResp LocationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&locationResp); err != nil {
 		return nil, fmt.Errorf("error decoding location data: %w", err)
 	}
 
-	return locations, nil
-}
-
-// Ability represents a subset of data returned for an ability.
-type Ability struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	// Add additional fields as needed.
-}
-
-// GetAbility fetches an ability's information by name.
-func (c *Client) GetAbility(name string) (*Ability, error) {
-	endpoint := fmt.Sprintf("%s/ability/%s", c.BaseURL, name)
-	resp, err := c.HTTPClient.Get(endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching ability: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status %s: %s", resp.Status, body)
-	}
-
-	var ability Ability
-	if err := json.NewDecoder(resp.Body).Decode(&ability); err != nil {
-		return nil, fmt.Errorf("error decoding ability data: %w", err)
-	}
-
-	return &ability, nil
+	currentLocationURL = locationResp.Next
+	return &locationResp, nil
 }

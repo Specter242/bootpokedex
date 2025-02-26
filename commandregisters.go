@@ -5,9 +5,12 @@
 package main
 
 import (
+	"bootpokedex/internal"
 	"fmt"
 	"os"
 )
+
+var pokeClient = internal.NewClient("https://pokeapi.co/api/v2")
 
 func commandExit() error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
@@ -28,6 +31,15 @@ func commandHelp() error {
 }
 
 func commandMap() error {
+	locations, err := pokeClient.GetLocations()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Location areas:")
+	for _, loc := range locations.Results {
+		fmt.Printf("- %s\n", loc.Name)
+	}
 
 	return nil
 }
@@ -45,13 +57,11 @@ func getCommands() map[string]cliCommand {
 			description: "Exit the Pokedex",
 			callback:    commandExit,
 		},
-
 		"help": {
 			name:        "help",
 			description: "Displays a help message",
 			callback:    commandHelp,
 		},
-
 		"map": {
 			name:        "map",
 			description: "Display the next 20 locations",
