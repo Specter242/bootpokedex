@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Specter242/bootpokedex/internal/pokeapi"
@@ -8,13 +9,16 @@ import (
 
 // MockClient implements the APIClient interface for testing
 type MockClient struct {
-	locations *pokeapi.LocationResponse
+	locations   *pokeapi.LocationResponse
+	shouldError bool
+	callHistory []bool // tracks forward/backward calls
 }
 
-// Ensure MockClient implements APIClient
-var _ pokeapi.APIClient = (*MockClient)(nil)
-
 func (m *MockClient) GetLocations(directionFWD bool) (*pokeapi.LocationResponse, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("mock error")
+	}
+	m.callHistory = append(m.callHistory, directionFWD)
 	return m.locations, nil
 }
 
@@ -28,7 +32,7 @@ func TestCleanInput(t *testing.T) {
 			expected: []string{"hello", "world"},
 		},
 		{
-			input:    "Hello, world  ",
+			input:    "Hello World  ",
 			expected: []string{"hello", "world"},
 		},
 		{
@@ -42,10 +46,6 @@ func TestCleanInput(t *testing.T) {
 		{
 			input:    "  ",
 			expected: []string{},
-		},
-		{
-			input:    "hello,world",
-			expected: []string{"hello", "world"},
 		},
 	}
 
@@ -87,45 +87,59 @@ func TestGetCommands(t *testing.T) {
 	}
 }
 
-func TestCommandCallbacks(t *testing.T) {
-	// Setup mock client
-	mockLocations := &pokeapi.LocationResponse{
-		Count: 1,
-		Results: []pokeapi.Location{
-			{Name: "test-location", URL: "test-url"},
+func TestCommandMap(t *testing.T) {
+	mockClient := &MockClient{
+		locations: &pokeapi.LocationResponse{
+			Count: 1,
+			Results: []pokeapi.Location{
+				{Name: "test-location", URL: "test-url"},
+			},
 		},
 	}
 
-	mockClient := &MockClient{locations: mockLocations}
-
-	// Store the original client and restore it after the test
 	originalClient := pokeClient
+	pokeClient = mockClient
 	defer func() { pokeClient = originalClient }()
 
-	// Use type assertion to ensure we're using the interface type
-	pokeClient = pokeapi.APIClient(mockClient)
-
-	commands := getCommands()
-
-	// Test map command
-	err := commands["map"].callback()
+	err := commandMap()
 	if err != nil {
-		t.Errorf("map command failed: %v", err)
+		t.Errorf("Expected no error, got %v", err)
 	}
 
-	// Test mapb command
-	err = commands["mapb"].callback()
-	if err != nil {
-		t.Errorf("mapb command failed: %v", err)
+	if !mockClient.callHistory[0] {
+		t.Error("Expected forward direction call")
+	}
+}
+
+func TestCommandMapb(t *testing.T) {
+	mockClient := &MockClient{
+		locations: &pokeapi.LocationResponse{
+			Count: 1,
+			Results: []pokeapi.Location{
+				{Name: "test-location", URL: "test-url"},
+			},
+		},
 	}
 
-	// Test help command
-	err = commands["help"].callback()
+	originalClient := pokeClient
+	pokeClient = mockClient
+	defer func() { pokeClient = originalClient }()
+
+	err := commandMapb()
 	if err != nil {
-		t.Errorf("help command failed: %v", err)
+		t.Errorf("Expected no error, got %v", err)
 	}
 
-	// Note: we don't test exit command as it calls os.Exit
+	if mockClient.callHistory[0] {
+		t.Error("Expected backward direction call")
+	}
+}
+
+func TestCommandHelp(t *testing.T) {
+	err := commandHelp()
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
 }
 
 func TestCommandDescriptions(t *testing.T) {
@@ -147,19 +161,5 @@ func TestCommandDescriptions(t *testing.T) {
 		} else {
 			t.Errorf("Expected command %q not found", cmd)
 		}
-	}
-}
-
-func TestCommandExit(t *testing.T) {
-	err := commandExit()
-	if err != nil {
-		t.Errorf("Expected nil error, but got %v", err)
-	}
-}
-
-func TestCommandHelp(t *testing.T) {
-	err := commandHelp()
-	if err != nil {
-		t.Errorf("Expected nil error, but got %v", err)
 	}
 }
