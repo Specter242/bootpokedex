@@ -10,6 +10,7 @@ import (
 // MockClient implements the APIClient interface for testing
 type MockClient struct {
 	locations   *pokeapi.LocationResponse
+	pokeList    *pokeapi.PokeList
 	shouldError bool
 	callHistory []bool // tracks forward/backward calls
 }
@@ -20,6 +21,16 @@ func (m *MockClient) GetLocations(directionFWD bool) (*pokeapi.LocationResponse,
 	}
 	m.callHistory = append(m.callHistory, directionFWD)
 	return m.locations, nil
+}
+
+func (m *MockClient) Explore(locationName string) (*pokeapi.PokeList, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("mock error")
+	}
+	if locationName == "" {
+		return nil, fmt.Errorf("location name required")
+	}
+	return m.pokeList, nil
 }
 
 func TestCleanInput(t *testing.T) {
@@ -95,13 +106,17 @@ func TestCommandMap(t *testing.T) {
 				{Name: "test-location", URL: "test-url"},
 			},
 		},
+		pokeList: &pokeapi.PokeList{
+			Name: "test-pokemon",
+			URL:  "test-url",
+		},
 	}
 
 	originalClient := pokeClient
 	pokeClient = mockClient
 	defer func() { pokeClient = originalClient }()
 
-	err := commandMap()
+	err := commandMap("")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -125,7 +140,7 @@ func TestCommandMapb(t *testing.T) {
 	pokeClient = mockClient
 	defer func() { pokeClient = originalClient }()
 
-	err := commandMapb()
+	err := commandMapb("")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -136,7 +151,7 @@ func TestCommandMapb(t *testing.T) {
 }
 
 func TestCommandHelp(t *testing.T) {
-	err := commandHelp()
+	err := commandHelp("")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -157,6 +172,74 @@ func TestCommandDescriptions(t *testing.T) {
 			if command.description != expectedDesc {
 				t.Errorf("Command %q: expected description %q, got %q",
 					cmd, expectedDesc, command.description)
+			}
+		} else {
+			t.Errorf("Expected command %q not found", cmd)
+		}
+	}
+}
+
+func TestCommandExplore(t *testing.T) {
+	tests := []struct {
+		name    string
+		arg     string
+		wantErr bool
+	}{
+		{
+			name:    "With valid location",
+			arg:     "test-location",
+			wantErr: false,
+		},
+		{
+			name:    "With empty location",
+			arg:     "",
+			wantErr: true,
+		},
+	}
+
+	mockClient := &MockClient{
+		pokeList: &pokeapi.PokeList{
+			Name: "test-location",
+			PokemonEncounters: []pokeapi.PokemonEncounter{
+				{
+					Pokemon: pokeapi.Pokemon{
+						Name: "pikachu",
+						URL:  "https://pokeapi.co/api/v2/pokemon/25/",
+					},
+				},
+			},
+		},
+	}
+
+	// Replace the global client with our mock
+	pokeClient = mockClient
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := commandExplore(tt.arg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("commandExplore() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCommandRequirements(t *testing.T) {
+	commands := getCommands()
+
+	expectedArgs := map[string]bool{
+		"help":    false,
+		"exit":    false,
+		"map":     false,
+		"mapb":    false,
+		"explore": true,
+	}
+
+	for cmd, requiresArg := range expectedArgs {
+		if command, exists := commands[cmd]; exists {
+			if command.requiresArg != requiresArg {
+				t.Errorf("Command %q: expected requiresArg=%v, got %v",
+					cmd, requiresArg, command.requiresArg)
 			}
 		} else {
 			t.Errorf("Expected command %q not found", cmd)

@@ -9,48 +9,49 @@ import (
 
 func main() {
 	commands := getCommands()
-
-	// Use a single Scanner to process input
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		// Prompt the user
 		fmt.Print("Pokedex > ")
 
-		// Check if input is available or EOF is encountered
 		if !scanner.Scan() {
 			fmt.Println("No more input to scan. Exiting REPL...")
 			break
 		}
 
-		// Process the input (command)
-		text := scanner.Text()
-		// fmt.Println("Input received:", text)
-
-		// Clean and parse the command
-		words := cleanInput(text)
+		words := cleanInput(scanner.Text())
 		if len(words) == 0 {
-			fmt.Println("No command entered, continuing...")
 			continue
 		}
 
-		command := words[0]
-		// fmt.Println("Parsed command:", command)
-
-		// Execute the command if it exists
-		if cmd, ok := commands[command]; ok {
-			// fmt.Println("Command found, executing:", command)
-			err := cmd.callback()
-			if err != nil {
-				fmt.Println("Error:", err)
-			}
-
-			// Explicitly exit the loop if the command was `exit`
-			if command == "exit" {
-				break
-			}
-		} else {
-			// Handle unknown commands
+		commandName := words[0]
+		cmd, ok := commands[commandName]
+		if !ok {
 			fmt.Println("Unknown command")
+			continue
+		}
+
+		var arg string
+		if len(words) > 1 && cmd.requiresArg {
+			arg = words[1]
+		}
+
+		if cmd.requiresArg && arg == "" {
+			fmt.Printf("Command '%s' requires an argument\n", commandName)
+			continue
+		}
+
+		if !cmd.requiresArg && len(words) > 1 {
+			fmt.Printf("Command '%s' doesn't accept arguments\n", commandName)
+			continue
+		}
+
+		err := cmd.callback(arg)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+
+		if commandName == "exit" {
+			break
 		}
 	}
 }

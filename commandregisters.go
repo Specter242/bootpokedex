@@ -8,20 +8,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Specter242/bootpokedex/internal/pokeapi" // fixed casing
+	"github.com/Specter242/bootpokedex/internal/pokeapi"
 )
 
 // Make pokeClient a package variable that can be modified for testing
 var pokeClient pokeapi.APIClient = pokeapi.NewClient("https://pokeapi.co/api/v2")
 
-func commandExit() error {
+func commandExit(arg string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Stdout.Sync() // Flush stdout to ensure the message is displayed
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(arg string) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println("")
@@ -32,7 +32,7 @@ func commandHelp() error {
 	return nil
 }
 
-func commandMap() error {
+func commandMap(arg string) error {
 	locations, err := pokeClient.GetLocations(true)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func commandMap() error {
 	return nil
 }
 
-func commandMapb() error {
+func commandMapb(arg string) error {
 	locations, err := pokeClient.GetLocations(false)
 	if err != nil {
 		return err
@@ -60,10 +60,30 @@ func commandMapb() error {
 	return nil
 }
 
+func commandExplore(arg string) error {
+	if arg == "" {
+		return fmt.Errorf("missing location name")
+	}
+
+	pokeList, err := pokeClient.Explore(arg)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Exploring %s...\n", pokeList.Name)
+	fmt.Println("Found Pokemon:")
+	for _, encounter := range pokeList.PokemonEncounters {
+		fmt.Printf("- %s\n", encounter.Pokemon.Name)
+	}
+
+	return nil
+}
+
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(arg string) error
+	requiresArg bool
 }
 
 func getCommands() map[string]cliCommand {
@@ -72,21 +92,31 @@ func getCommands() map[string]cliCommand {
 			name:        "exit",
 			description: "Exit the Pokedex",
 			callback:    commandExit,
+			requiresArg: false,
 		},
 		"help": {
 			name:        "help",
 			description: "Displays a help message",
 			callback:    commandHelp,
+			requiresArg: false,
 		},
 		"map": {
 			name:        "map",
 			description: "Display the next 20 locations",
 			callback:    commandMap,
+			requiresArg: false,
 		},
 		"mapb": {
 			name:        "mapb",
 			description: "Display the previous 20 locations",
 			callback:    commandMapb,
+			requiresArg: false,
+		},
+		"explore": {
+			name:        "explore",
+			description: "Explore a specific location. Usage: explore <location_name>",
+			callback:    commandExplore,
+			requiresArg: true,
 		},
 	}
 }
