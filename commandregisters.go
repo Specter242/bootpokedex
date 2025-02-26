@@ -11,7 +11,8 @@ import (
 	"github.com/Specter242/bootpokedex/internal/pokeapi" // fixed casing
 )
 
-var pokeClient = pokeapi.NewClient("https://pokeapi.co/api/v2")
+// Make pokeClient a package variable that can be modified for testing
+var pokeClient pokeapi.APIClient = pokeapi.NewClient("https://pokeapi.co/api/v2")
 
 func commandExit() error {
 	fmt.Println("Closing the Pokedex... Goodbye!")

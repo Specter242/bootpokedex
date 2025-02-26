@@ -12,12 +12,20 @@ import (
 
 const cacheInterval = 30 * time.Second // Increased cache duration for better testing
 
+// APIClient interface defines the methods that need to be implemented
+type APIClient interface {
+	GetLocations(directionFWD bool) (*LocationResponse, error)
+}
+
 // Client is a PokeAPI client that handles API requests.
 type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
 	cache      *pokecache.Cache
 }
+
+// Ensure Client implements APIClient
+var _ APIClient = (*Client)(nil)
 
 // NewClient creates a new instance of the PokeAPI client.
 func NewClient(baseURL string) *Client {
@@ -42,20 +50,23 @@ type Location struct {
 	URL  string `json:"url"`
 }
 
-var currentLocationURL string = "https://pokeapi.co/api/v2/location-area"
-var previousLocationURL string = ""
-var nextLocationURL string = ""
+var (
+	// Make these public so they can be modified in tests
+	CurrentLocationURL  string = "https://pokeapi.co/api/v2/location-area"
+	PreviousLocationURL string = ""
+	NextLocationURL     string = ""
+)
 
 // GetLocations fetches a list of locations.
 func (c *Client) GetLocations(directionFWD bool) (*LocationResponse, error) {
 	var url string
 	if directionFWD {
-		url = nextLocationURL
+		url = NextLocationURL
 		if url == "" {
 			url = c.BaseURL + "/location-area"
 		}
 	} else {
-		url = previousLocationURL
+		url = PreviousLocationURL
 		if url == "" {
 			url = c.BaseURL + "/location-area"
 		}
@@ -89,9 +100,9 @@ func (c *Client) GetLocations(directionFWD bool) (*LocationResponse, error) {
 	}
 
 	// Update URLs
-	currentLocationURL = url
-	nextLocationURL = locationResp.Next
-	previousLocationURL = locationResp.Previous
+	CurrentLocationURL = url
+	NextLocationURL = locationResp.Next
+	PreviousLocationURL = locationResp.Previous
 
 	// Serialize to JSON before storing in cache
 	jsonData, err := json.Marshal(&locationResp)
