@@ -27,6 +27,11 @@ func commandHelp() error {
 	return nil
 }
 
+func commandMap() error {
+
+	return nil
+}
+
 type cliCommand struct {
 	name        string
 	description string
@@ -45,6 +50,12 @@ func getCommands() map[string]cliCommand {
 			name:        "help",
 			description: "Displays a help message",
 			callback:    commandHelp,
+		},
+
+		"map": {
+			name:        "map",
+			description: "Display the next 20 locations",
+			callback:    commandMap,
 		},
 	}
 }
