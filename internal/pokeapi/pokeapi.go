@@ -10,10 +10,13 @@ import (
 	"github.com/Specter242/bootpokedex/internal/pokecache"
 )
 
+const cacheInterval = 30 * time.Second // Increased cache duration for better testing
+
 // Client is a PokeAPI client that handles API requests.
 type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
+	cache      *pokecache.Cache
 }
 
 // NewClient creates a new instance of the PokeAPI client.
@@ -23,6 +26,7 @@ func NewClient(baseURL string) *Client {
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		cache: pokecache.NewCache(cacheInterval),
 	}
 }
 
@@ -41,7 +45,6 @@ type Location struct {
 var currentLocationURL string = "https://pokeapi.co/api/v2/location-area"
 var previousLocationURL string = ""
 var nextLocationURL string = ""
-var cache = pokecache.NewCache(5 * time.Second)
 
 // GetLocations fetches a list of locations.
 func (c *Client) GetLocations(directionFWD bool) (*LocationResponse, error) {
@@ -59,8 +62,8 @@ func (c *Client) GetLocations(directionFWD bool) (*LocationResponse, error) {
 	}
 
 	// Try to get from cache first
-	if cachedData, exists := cache.Get(url); exists {
-		fmt.Println("Cache hit")
+	if cachedData, exists := c.cache.Get(url); exists {
+		// fmt.Printf("Cache hit for URL: %s\n", url)
 		var locationResp LocationResponse
 		if err := json.Unmarshal(cachedData, &locationResp); err != nil {
 			return nil, fmt.Errorf("error decoding cached data: %w", err)
@@ -68,6 +71,7 @@ func (c *Client) GetLocations(directionFWD bool) (*LocationResponse, error) {
 		return &locationResp, nil
 	}
 
+	// fmt.Printf("Cache miss for URL: %s\n", url)
 	resp, err := c.HTTPClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching locations: %w", err)
@@ -94,7 +98,7 @@ func (c *Client) GetLocations(directionFWD bool) (*LocationResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error serializing location data for cache: %w", err)
 	}
-	cache.Add(url, jsonData)
+	c.cache.Add(url, jsonData)
 
 	return &locationResp, nil
 }

@@ -31,6 +31,11 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 	mux.RLock()
 	defer mux.RUnlock()
 	entry, exists := c.store[key]
+	// if exists {
+	//     fmt.Printf("Cache hit for key: %s\n", key)
+	// } else {
+	//     fmt.Printf("Cache miss for key: %s\n", key)
+	// }
 	return entry.val, exists
 }
 
@@ -54,15 +59,16 @@ func (c *Cache) Delete(key string) {
 func (c *Cache) reapLoop(interval time.Duration) {
 	for {
 		time.Sleep(interval)
-		c.clearExpired()
+		c.clearExpired(interval)
 	}
 }
 
-func (c *Cache) clearExpired() {
+func (c *Cache) clearExpired(interval time.Duration) {
 	mux.Lock()
 	defer mux.Unlock()
 	for key, entry := range c.store {
-		if time.Since(entry.createdAt) > 5*time.Second {
+		if time.Since(entry.createdAt) > interval {
+			// fmt.Printf("Removing expired cache entry for: %s\n", key)
 			delete(c.store, key)
 		}
 	}
