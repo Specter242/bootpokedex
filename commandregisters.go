@@ -5,12 +5,13 @@
 package main
 
 import (
-	"bootpokedex/internal"
 	"fmt"
 	"os"
+
+	"github.com/Specter242/bootpokedex/internal/pokeapi" // fixed casing
 )
 
-var pokeClient = internal.NewClient("https://pokeapi.co/api/v2")
+var pokeClient = pokeapi.NewClient("https://pokeapi.co/api/v2")
 
 func commandExit() error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
@@ -31,7 +32,21 @@ func commandHelp() error {
 }
 
 func commandMap() error {
-	locations, err := pokeClient.GetLocations()
+	locations, err := pokeClient.GetLocations(true)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Location areas:")
+	for _, loc := range locations.Results {
+		fmt.Printf("- %s\n", loc.Name)
+	}
+
+	return nil
+}
+
+func commandMapb() error {
+	locations, err := pokeClient.GetLocations(false)
 	if err != nil {
 		return err
 	}
@@ -66,6 +81,11 @@ func getCommands() map[string]cliCommand {
 			name:        "map",
 			description: "Display the next 20 locations",
 			callback:    commandMap,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Display the previous 20 locations",
+			callback:    commandMapb,
 		},
 	}
 }
