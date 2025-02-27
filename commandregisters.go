@@ -124,6 +124,20 @@ func commandInspect(arg string) error {
 	return nil
 }
 
+func commandPokedex(arg string) error {
+	pokedex, err := pokeClient.GetPokedex()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Pokedex:")
+	for _, pokemon := range pokedex.Pokemon {
+		fmt.Printf("- %s\n", pokemon.Name)
+	}
+
+	return nil
+}
+
 type cliCommand struct {
 	name        string
 	description string
@@ -174,6 +188,12 @@ func getCommands() map[string]cliCommand {
 			description: "Inspect a Pokemon. Usage: inspect <pokemon_name>",
 			callback:    commandInspect,
 			requiresArg: true,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Display the Pokedex",
+			callback:    commandPokedex,
+			requiresArg: false,
 		},
 	}
 }

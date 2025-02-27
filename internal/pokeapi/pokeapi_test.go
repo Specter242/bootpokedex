@@ -27,6 +27,10 @@ func (m *MockClient) InspectPokemon(pokemonName string) (*Pokemon, error) {
 	return nil, nil
 }
 
+func (m *MockClient) GetPokedex() (*Pokedex, error) {
+	return nil, nil
+}
+
 func TestClientImplementsInterface(t *testing.T) {
 	var _ APIClient = (*Client)(nil)
 	var _ APIClient = (*MockClient)(nil)

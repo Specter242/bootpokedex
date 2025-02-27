@@ -19,6 +19,7 @@ type APIClient interface {
 	Explore(locationName string) (*PokeList, error)
 	Catch(pokemonName string) (bool, error)
 	InspectPokemon(pokemonName string) (*Pokemon, error)
+	GetPokedex() (*Pokedex, error)
 }
 
 // Client is a PokeAPI client that handles API requests.
@@ -257,4 +258,23 @@ func (c *Client) InspectPokemon(pokemonName string) (*Pokemon, error) {
 	}
 
 	return nil, fmt.Errorf("you haven't caught %s yet", pokemonName)
+}
+
+func (c *Client) GetPokedex() (*Pokedex, error) {
+	var pokedex Pokedex
+	const prefix = "pokedex/"
+
+	// Get all pokemon keys from cache
+	pokemonNames := c.cache.GetKeysWithPrefix(prefix)
+
+	for _, name := range pokemonNames {
+		if name == "" {
+			continue
+		}
+		if pokemon, err := c.InspectPokemon(name); err == nil {
+			pokedex.Pokemon = append(pokedex.Pokemon, *pokemon)
+		}
+	}
+
+	return &pokedex, nil
 }

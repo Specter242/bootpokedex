@@ -11,6 +11,8 @@ import (
 type MockClient struct {
 	locations    *pokeapi.LocationResponse
 	pokeList     *pokeapi.PokeList
+	pokemon      *pokeapi.Pokemon
+	pokedex      *pokeapi.Pokedex // Add pokedex field
 	shouldError  bool
 	callHistory  []bool // tracks forward/backward calls
 	catchSuccess bool   // determines if catch attempt succeeds
@@ -42,6 +44,30 @@ func (m *MockClient) Catch(pokemonName string) (bool, error) {
 		return false, fmt.Errorf("pokemon name required")
 	}
 	return m.catchSuccess, nil
+}
+
+func (m *MockClient) InspectPokemon(pokemonName string) (*pokeapi.Pokemon, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("mock error")
+	}
+	if pokemonName == "" {
+		return nil, fmt.Errorf("pokemon name required")
+	}
+	if m.pokemon == nil {
+		return nil, fmt.Errorf("you haven't caught %s yet", pokemonName)
+	}
+	return m.pokemon, nil
+}
+
+// Add GetPokedex method to fulfill the APIClient interface
+func (m *MockClient) GetPokedex() (*pokeapi.Pokedex, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("mock error")
+	}
+	if m.pokedex == nil {
+		return &pokeapi.Pokedex{Pokemon: []pokeapi.Pokemon{}}, nil
+	}
+	return m.pokedex, nil
 }
 
 func TestCleanInput(t *testing.T) {
@@ -255,5 +281,87 @@ func TestCommandRequirements(t *testing.T) {
 		} else {
 			t.Errorf("Expected command %q not found", cmd)
 		}
+	}
+}
+
+func TestCommandInspect(t *testing.T) {
+	tests := []struct {
+		name    string
+		arg     string
+		pokemon *pokeapi.Pokemon
+		wantErr bool
+	}{
+		{
+			name: "With caught pokemon",
+			arg:  "pikachu",
+			pokemon: &pokeapi.Pokemon{
+				Name:   "pikachu",
+				Height: 4,
+				Weight: 60,
+				Stats: []pokeapi.PokeStat{
+					{
+						BaseStat: 35,
+						Stat: struct {
+							Name string `json:"name"`
+						}{Name: "hp"},
+					},
+				},
+				Types: []pokeapi.PokeType{
+					{
+						Type: struct {
+							Name string `json:"name"`
+						}{Name: "electric"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "With empty name",
+			arg:     "",
+			pokemon: nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := &MockClient{
+				pokemon: tt.pokemon,
+			}
+			pokeClient = mockClient
+
+			err := commandInspect(tt.arg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("commandInspect() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCommandPokedex(t *testing.T) {
+	mockClient := &MockClient{
+		pokedex: &pokeapi.Pokedex{
+			Pokemon: []pokeapi.Pokemon{
+				{Name: "pikachu"},
+				{Name: "bulbasaur"},
+			},
+		},
+	}
+
+	originalClient := pokeClient
+	pokeClient = mockClient
+	defer func() { pokeClient = originalClient }()
+
+	err := commandPokedex("")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// Test with error
+	mockClient.shouldError = true
+	err = commandPokedex("")
+	if err == nil {
+		t.Error("Expected an error, got nil")
 	}
 }

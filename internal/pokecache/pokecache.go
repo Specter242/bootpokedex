@@ -56,6 +56,21 @@ func (c *Cache) Delete(key string) {
 	delete(c.store, key)
 }
 
+// GetKeysWithPrefix returns all keys in the cache that have the given prefix
+func (c *Cache) GetKeysWithPrefix(prefix string) []string {
+	mux.RLock()
+	defer mux.RUnlock()
+
+	var keys []string
+	for key := range c.store {
+		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
+			keys = append(keys, key[len(prefix):])
+		}
+	}
+
+	return keys
+}
+
 func (c *Cache) reapLoop(interval time.Duration) {
 	for {
 		time.Sleep(interval)
