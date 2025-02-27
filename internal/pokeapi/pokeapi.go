@@ -18,6 +18,7 @@ type APIClient interface {
 	GetLocations(directionFWD bool) (*LocationResponse, error)
 	Explore(locationName string) (*PokeList, error)
 	Catch(pokemonName string) (bool, error)
+	InspectPokemon(pokemonName string) (*Pokemon, error)
 }
 
 // Client is a PokeAPI client that handles API requests.
@@ -64,9 +65,26 @@ type PokemonEncounter struct {
 }
 
 type Pokemon struct {
-	Name           string `json:"name"`
-	URL            string `json:"url"`
-	BaseExperience int    `json:"base_experience"`
+	Name           string     `json:"name"`
+	URL            string     `json:"url"`
+	BaseExperience int        `json:"base_experience"`
+	Height         int        `json:"height"`
+	Weight         int        `json:"weight"`
+	Stats          []PokeStat `json:"stats"`
+	Types          []PokeType `json:"types"`
+}
+
+type PokeStat struct {
+	BaseStat int `json:"base_stat"`
+	Stat     struct {
+		Name string `json:"name"`
+	} `json:"stat"`
+}
+
+type PokeType struct {
+	Type struct {
+		Name string `json:"name"`
+	} `json:"type"`
 }
 
 type Pokedex struct {
@@ -226,4 +244,17 @@ func (c *Client) Catch(pokemonName string) (bool, error) {
 	}
 
 	return caught, nil
+}
+
+func (c *Client) InspectPokemon(pokemonName string) (*Pokemon, error) {
+	// Check if pokemon exists in pokedex (cache)
+	if cachedData, exists := c.cache.Get("pokedex/" + pokemonName); exists {
+		var pokemon Pokemon
+		if err := json.Unmarshal(cachedData, &pokemon); err != nil {
+			return nil, fmt.Errorf("error decoding cached pokemon data: %w", err)
+		}
+		return &pokemon, nil
+	}
+
+	return nil, fmt.Errorf("you haven't caught %s yet", pokemonName)
 }
