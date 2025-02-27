@@ -79,6 +79,26 @@ func commandExplore(arg string) error {
 	return nil
 }
 
+func commandCatch(arg string) error {
+	if arg == "" {
+		return fmt.Errorf("missing Pokemon name")
+	}
+
+	caughtPokemon, err := pokeClient.Catch(arg)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", arg)
+
+	if caughtPokemon {
+		fmt.Printf("%s was caught!\n", arg)
+	} else {
+		fmt.Printf("%s escaped!\n", arg)
+	}
+	return nil
+}
+
 type cliCommand struct {
 	name        string
 	description string
@@ -116,6 +136,12 @@ func getCommands() map[string]cliCommand {
 			name:        "explore",
 			description: "Explore a specific location. Usage: explore <location_name>",
 			callback:    commandExplore,
+			requiresArg: true,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Catch a Pokemon. Usage: catch <pokemon_name>",
+			callback:    commandCatch,
 			requiresArg: true,
 		},
 	}

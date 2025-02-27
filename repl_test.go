@@ -9,10 +9,11 @@ import (
 
 // MockClient implements the APIClient interface for testing
 type MockClient struct {
-	locations   *pokeapi.LocationResponse
-	pokeList    *pokeapi.PokeList
-	shouldError bool
-	callHistory []bool // tracks forward/backward calls
+	locations    *pokeapi.LocationResponse
+	pokeList     *pokeapi.PokeList
+	shouldError  bool
+	callHistory  []bool // tracks forward/backward calls
+	catchSuccess bool   // determines if catch attempt succeeds
 }
 
 func (m *MockClient) GetLocations(directionFWD bool) (*pokeapi.LocationResponse, error) {
@@ -31,6 +32,16 @@ func (m *MockClient) Explore(locationName string) (*pokeapi.PokeList, error) {
 		return nil, fmt.Errorf("location name required")
 	}
 	return m.pokeList, nil
+}
+
+func (m *MockClient) Catch(pokemonName string) (bool, error) {
+	if m.shouldError {
+		return false, fmt.Errorf("mock error")
+	}
+	if pokemonName == "" {
+		return false, fmt.Errorf("pokemon name required")
+	}
+	return m.catchSuccess, nil
 }
 
 func TestCleanInput(t *testing.T) {

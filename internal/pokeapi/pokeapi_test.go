@@ -8,6 +8,7 @@ import (
 type MockClient struct {
 	GetLocationsFunc func(directionFWD bool) (*LocationResponse, error)
 	ExploreFunc      func(locationName string) (*PokeList, error)
+	CatchFunc        func(pokemonName string) (bool, error)
 }
 
 func (m *MockClient) GetLocations(directionFWD bool) (*LocationResponse, error) {
@@ -16,6 +17,10 @@ func (m *MockClient) GetLocations(directionFWD bool) (*LocationResponse, error) 
 
 func (m *MockClient) Explore(locationName string) (*PokeList, error) {
 	return m.ExploreFunc(locationName)
+}
+
+func (m *MockClient) Catch(pokemonName string) (bool, error) {
+	return m.CatchFunc(pokemonName)
 }
 
 func TestClientImplementsInterface(t *testing.T) {

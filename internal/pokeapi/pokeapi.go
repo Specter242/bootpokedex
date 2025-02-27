@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -16,6 +17,7 @@ const cacheInterval = 30 * time.Second
 type APIClient interface {
 	GetLocations(directionFWD bool) (*LocationResponse, error)
 	Explore(locationName string) (*PokeList, error)
+	Catch(pokemonName string) (bool, error)
 }
 
 // Client is a PokeAPI client that handles API requests.
@@ -62,8 +64,13 @@ type PokemonEncounter struct {
 }
 
 type Pokemon struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Name           string `json:"name"`
+	URL            string `json:"url"`
+	BaseExperience int    `json:"base_experience"`
+}
+
+type Pokedex struct {
+	Pokemon []Pokemon `json:"pokemon"`
 }
 
 var (
@@ -172,4 +179,51 @@ func (c *Client) Explore(locationName string) (*PokeList, error) {
 	c.cache.Add(url, jsonData)
 
 	return &pokeList, nil
+}
+
+func (c *Client) Catch(pokemonName string) (bool, error) {
+	url := c.BaseURL + "/pokemon/" + pokemonName
+
+	resp, err := c.HTTPClient.Get(url)
+	if err != nil {
+		return false, fmt.Errorf("error fetching pokemon: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("unexpected status %s: %s", resp.Status, body)
+	}
+
+	var pokemon Pokemon
+	if err := json.NewDecoder(resp.Body).Decode(&pokemon); err != nil {
+		return false, fmt.Errorf("error decoding pokemon data: %w", err)
+	}
+
+	// Calculate catch chance
+	// Higher base experience means harder to catch
+	catchRate := 0
+	if pokemon.BaseExperience > 0 {
+		catchRate = (100 - pokemon.BaseExperience/4)
+		if catchRate < 10 {
+			catchRate = 10 // Minimum 10% chance
+		}
+	} else {
+		catchRate = 50 // Default 50% if no base experience
+	}
+
+	// Random roll (0-99)
+	roll := rand.Intn(100)
+
+	caught := roll < catchRate
+	if caught {
+		// Add to Pokedex
+		jsonData, err := json.Marshal(&pokemon)
+		if err != nil {
+			return false, fmt.Errorf("error serializing pokemon data: %w", err)
+		}
+		c.cache.Add("pokedex/"+pokemonName, jsonData)
+	}
+
+	return caught, nil
 }
